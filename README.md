@@ -89,13 +89,13 @@ que encapsula o endpoint `/api/edge/intercept` do backend Express:
    valor aparecerá no dashboard e nos eventos de roteamento.
 
 3. Faça o deploy manual ou deixe o GitHub Actions/Cloudflare Pages executar `npx wrangler deploy`.
-   Como o arquivo `wrangler.toml` agora aponta para `cloudflare/worker.js`, o erro de entry-point
-   deixa de ocorrer.
+   O arquivo `wrangler.toml` agora aponta para `worker.js` na raiz, que por sua vez reexporta o
+   módulo em `cloudflare/worker.js`, eliminando o erro de entry-point visto anteriormente.
 
-O script `cloudflare/worker.js` aceita `POST` com JSON, encaminha para o backend e preserva o
-payload/resposta, adicionando CORS básico e um `GET` de saúde. Em produção você pode evoluir o
-Worker para executar toda a lógica de roteamento diretamente no edge ou consultar configurações
-via KV/Durable Objects.
+O script `cloudflare/worker.js` continua responsável por aceitar `POST` com JSON, encaminhar para o
+backend e preservar o payload/resposta, adicionando CORS básico e um `GET` de saúde. Em produção
+você pode evoluir o Worker para executar toda a lógica de roteamento diretamente no edge ou
+consultar configurações via KV/Durable Objects.
 
 ---
 

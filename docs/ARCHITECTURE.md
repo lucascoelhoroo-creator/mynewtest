@@ -37,9 +37,11 @@ Site A (Origem) -> CDN/Edge (Simulado) -> FaaS/Backend -> Shopify Checkout (Site
 ## Worker de Referência (Cloudflare)
 
 - O diretório `cloudflare/` contém `worker.js`, que atua como camada edge mínima para encaminhar
-  o `POST /intercept` para o backend Express preservando o payload original e adicionando CORS.
-- O arquivo `wrangler.toml` define o entry-point (`main = "cloudflare/worker.js"`) e um `WORKER_ID`
-  usado para identificar o servidor Jump AB nos eventos.
+  o `POST /intercept` para o backend Express preservando o payload original e adicionando CORS. A
+  raiz expõe um `worker.js` que apenas reexporta esse módulo para facilitar o deploy automático
+  (Cloudflare espera o entry-point diretamente ao lado do `wrangler.toml`).
+- O arquivo `wrangler.toml` define o entry-point (`main = "worker.js"`) e um `WORKER_ID` usado para
+  identificar o servidor Jump AB nos eventos.
 - Defina o secret `BACKEND_INTERCEPT_URL` no Worker apontando para o endpoint público do backend.
   Isso resolve o erro de deploy `Missing entry-point to Worker script or to assets directory`
   observado no log da Cloudflare.
