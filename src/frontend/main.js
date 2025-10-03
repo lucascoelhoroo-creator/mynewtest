@@ -13,6 +13,8 @@ async function fetchJSON(url, options) {
   return response.json();
 }
 
+let cachedEdgeWorkers = [];
+
 async function refreshShops() {
   const shops = await fetchJSON('/api/onboarding/shops');
   document.getElementById('shop-list').textContent = JSON.stringify(shops, null, 2);
@@ -38,9 +40,33 @@ async function refreshMappings() {
   renderMappingOptions(mappings);
 }
 
+function updateEdgeWorkerSelect(workers) {
+  const select = document.getElementById('edgeWorkerSelect');
+  if (!select) {
+    return;
+  }
+
+  const previousValue = select.value;
+  select.innerHTML = '<option value="local">Servidor local (Express)</option>';
+
+  workers.forEach((worker) => {
+    const option = document.createElement('option');
+    option.value = worker.id;
+    const label = worker.label ? `${worker.label} (${worker.id})` : worker.id;
+    option.textContent = label;
+    select.appendChild(option);
+  });
+
+  if (workers.some((worker) => worker.id === previousValue)) {
+    select.value = previousValue;
+  }
+}
+
 async function refreshEdgeWorkers() {
   const workers = await fetchJSON('/api/onboarding/edge-workers');
+  cachedEdgeWorkers = workers;
   document.getElementById('edge-worker-list').textContent = JSON.stringify(workers, null, 2);
+  updateEdgeWorkerSelect(workers);
 }
 
 const metricLabels = {
@@ -186,22 +212,76 @@ async function init() {
       channel: document.getElementById('edgeChannel').value || undefined,
       quantity: Number(document.getElementById('edgeQuantity').value || '1')
     };
+    const workerSelect = document.getElementById('edgeWorkerSelect');
+    const runner = workerSelect ? workerSelect.value : 'local';
+    const usingRemoteWorker = runner && runner !== 'local';
+    let endpoint = '/api/edge/intercept';
+
+    if (usingRemoteWorker) {
+      const remoteWorker = cachedEdgeWorkers.find((worker) => worker.id === runner);
+      if (!remoteWorker || !remoteWorker.endpointUrl) {
+        document.getElementById('edge-result').textContent = 'Worker selecionado não possui endpoint válido.';
+        return;
+      }
+      endpoint = remoteWorker.endpointUrl;
+    }
+
     try {
-      const result = await fetchJSON('/api/edge/intercept', {
+      const requestOptions = {
         method: 'POST',
         body: JSON.stringify(payload)
-      });
+      };
+      if (usingRemoteWorker) {
+        requestOptions.mode = 'cors';
+      }
+
+      const result = await fetchJSON(endpoint, requestOptions);
       document.getElementById('edge-result').innerHTML = `
         <p>Status: <strong>${result.status}</strong></p>
         ${result.originShop ? `<p>Origem: ${result.originShop}</p>` : ''}
         ${result.targetShop ? `<p>Destino: ${result.targetShop}</p>` : ''}
         ${result.edgeWorker ? `<p>Servidor: ${result.edgeWorker.label || result.edgeWorker.id}</p>` : ''}
+        <p>Execução: ${usingRemoteWorker ? 'Worker Cloudflare selecionado' : 'Backend local'}</p>
         ${result.checkoutUrl ? `<a href="${result.checkoutUrl}" target="_blank" rel="noopener">Abrir checkout seguro</a>` : ''}
       `;
     } catch (error) {
       document.getElementById('edge-result').textContent = error.message;
     }
     await refreshDashboard();
+  });
+
+  document.getElementById('ping-worker').addEventListener('click', async () => {
+    const select = document.getElementById('edgeWorkerSelect');
+    const output = document.getElementById('edge-worker-health');
+    if (!select || !output) {
+      return;
+    }
+
+    if (select.value === 'local') {
+      output.textContent = 'O backend local Express está habilitado automaticamente para interceptações de teste.';
+      return;
+    }
+
+    const worker = cachedEdgeWorkers.find((entry) => entry.id === select.value);
+    if (!worker || !worker.endpointUrl) {
+      output.textContent = 'Worker selecionado não possui endpoint válido cadastrado.';
+      return;
+    }
+
+    try {
+      const response = await fetch(worker.endpointUrl, {
+        method: 'GET',
+        mode: 'cors'
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(body || `Status ${response.status}`);
+      }
+      const data = await response.json();
+      output.textContent = `Worker ativo (${worker.endpointUrl}): ${JSON.stringify(data, null, 2)}`;
+    } catch (error) {
+      output.textContent = `Falha ao consultar o worker: ${error.message}`;
+    }
   });
 
   await refreshShops();

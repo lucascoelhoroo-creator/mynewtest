@@ -134,6 +134,18 @@
       <section class="card" id="edge-simulator">
         <h2>Simular Interceptação Edge</h2>
         <form id="edge-form">
+          <div class="two-columns">
+            <div class="field">
+              <label for="edgeWorkerSelect">Executar via</label>
+              <select id="edgeWorkerSelect">
+                <option value="local">Servidor local (Express)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button type="button" id="ping-worker">Consultar status do worker</button>
+            </div>
+          </div>
           <div class="field">
             <label for="edgeProduct">product_x_id</label>
             <input id="edgeProduct" required />
@@ -148,6 +160,7 @@
           </div>
           <button type="submit">Executar decisão</button>
         </form>
+        <div id="edge-worker-health" class="preview"></div>
         <div id="edge-result" class="preview"></div>
       </section>
     </main>
