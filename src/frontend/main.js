@@ -69,6 +69,28 @@ async function refreshEdgeWorkers() {
   updateEdgeWorkerSelect(workers);
 }
 
+async function refreshCloudflareStatus() {
+  const container = document.getElementById('cloudflare-status');
+  if (!container) {
+    return;
+  }
+  try {
+    const status = await fetchJSON('/api/onboarding/cloudflare');
+    if (!status.connected) {
+      container.innerHTML = '<p>Nenhuma conta Cloudflare conectada. Informe as credenciais para sincronizar automaticamente seus workers.</p>';
+      return;
+    }
+    container.innerHTML = `
+      <p><strong>Conta conectada:</strong> ${status.accountId}</p>
+      ${status.subdomain ? `<p><strong>Subdomínio:</strong> ${status.subdomain}.workers.dev</p>` : ''}
+      <p><strong>Workers sincronizados:</strong> ${status.workerCount ?? 0}</p>
+      ${status.lastSyncedAt ? `<p><small>Última sincronização: ${new Date(status.lastSyncedAt).toLocaleString()}</small></p>` : ''}
+    `;
+  } catch (error) {
+    container.textContent = `Falha ao carregar status da Cloudflare: ${error.message}`;
+  }
+}
+
 const metricLabels = {
   initiated: 'Sessões registradas',
   redirectReady: 'Checkout pronto',
@@ -115,6 +137,7 @@ async function refreshStatus() {
       <li>Lojas destino conectadas: <strong>${status.siteBConnected ? 'Sim' : 'Não'}</strong></li>
       <li>Mapeamentos prontos: <strong>${status.mappingsReady ? 'Sim' : 'Não'}</strong></li>
       <li>Servidores Jump AB: <strong>${status.workersConnected}</strong></li>
+      <li>Conta Cloudflare: <strong>${status.cloudflareConnected ? 'Sincronizada' : 'Pendente'}</strong></li>
     </ul>
   `;
   const button = document.getElementById('generate-test-link');
@@ -179,6 +202,33 @@ async function init() {
     await refreshStatus();
     event.target.reset();
   });
+
+  const cloudflareForm = document.getElementById('cloudflare-form');
+  if (cloudflareForm) {
+    cloudflareForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const accountId = document.getElementById('cloudflareAccountId').value;
+      const apiToken = document.getElementById('cloudflareApiToken').value;
+      const feedback = document.getElementById('cloudflare-output');
+      feedback.textContent = 'Conectando à Cloudflare...';
+      try {
+        const result = await fetchJSON('/api/onboarding/cloudflare/connect', {
+          method: 'POST',
+          body: JSON.stringify({ accountId, apiToken })
+        });
+        feedback.innerHTML = `
+          <p>${result.message}</p>
+          <p>Workers sincronizados: <strong>${result.workerCount}</strong></p>
+        `;
+        cloudflareForm.reset();
+        await refreshCloudflareStatus();
+        await refreshEdgeWorkers();
+        await refreshStatus();
+      } catch (error) {
+        feedback.textContent = `Falha ao conectar: ${error.message}`;
+      }
+    });
+  }
 
   document.getElementById('generate-test-link').addEventListener('click', async () => {
     const mappingSelect = document.getElementById('testMapping');
@@ -287,6 +337,7 @@ async function init() {
   await refreshShops();
   await refreshMappings();
   await refreshEdgeWorkers();
+  await refreshCloudflareStatus();
   await refreshStatus();
   await refreshDashboard();
 }

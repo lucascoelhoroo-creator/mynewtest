@@ -106,6 +106,29 @@
         <pre id="edge-worker-list" class="preview"></pre>
       </section>
 
+      <section class="card" id="cloudflare-connect">
+        <h2>Cloudflare Workers &amp; Pages</h2>
+        <p>
+          Conecte sua conta Cloudflare para importar automaticamente os Workers publicados via
+          GitHub (Workers &amp; Pages) e validar a configuração sem editar manualmente.
+        </p>
+        <form id="cloudflare-form">
+          <div class="two-columns">
+            <div class="field">
+              <label for="cloudflareAccountId">Account ID</label>
+              <input id="cloudflareAccountId" required placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+            </div>
+            <div class="field">
+              <label for="cloudflareApiToken">API Token</label>
+              <input id="cloudflareApiToken" type="password" required placeholder="Token com acesso a Workers" />
+            </div>
+          </div>
+          <button type="submit">Conectar e sincronizar Workers</button>
+        </form>
+        <div id="cloudflare-output" class="preview"></div>
+        <div id="cloudflare-status" class="preview"></div>
+      </section>
+
       <section class="card" id="test-link">
         <h2>4. Gerar link de teste</h2>
         <p id="test-link-helper">Conecte lojas e mapeamentos para liberar o link.</p>

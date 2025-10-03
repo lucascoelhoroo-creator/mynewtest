@@ -11,6 +11,10 @@ import {
   saveProductMapping
 } from '../services/configService.js';
 import { generateTestCheckoutLink } from '../services/routingService.js';
+import {
+  connectCloudflareAccount,
+  getCloudflareAccount
+} from '../services/cloudflareService.js';
 
 const router = Router();
 
@@ -85,6 +89,24 @@ router.post('/test-link', async (req, res) => {
       targetShop: decision.targetShop,
       originShop: decision.originShop,
       edgeWorker: decision.edgeWorker
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.get('/cloudflare', async (_req, res) => {
+  const account = await getCloudflareAccount();
+  res.json(account);
+});
+
+router.post('/cloudflare/connect', async (req, res) => {
+  try {
+    const { accountId, apiToken } = req.body;
+    const result = await connectCloudflareAccount({ accountId, apiToken });
+    res.status(200).json({
+      message: 'Conta Cloudflare conectada e workers sincronizados',
+      ...result
     });
   } catch (error) {
     res.status(400).json({ message: error.message });

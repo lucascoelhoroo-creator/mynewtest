@@ -38,11 +38,15 @@ A aplicação ficará disponível em `http://localhost:3000`.
    Globais da Shopify e lojas correspondentes.
 3. **Cadastrar servidores Jump AB**: informe endpoints das funções/edges responsáveis pelo
    roteamento (veja a seção "Publicando um Worker na Cloudflare" para um exemplo pronto).
-4. **Gerar link de teste**: ao conectar lojas e mapeamentos, use a seção “Gerar link de teste”
+4. **Sincronizar Cloudflare Workers (opcional, recomendado)**: utilize o novo formulário de
+   conexão para informar o *Account ID* e um API Token com permissão de leitura de Workers.
+   O protótipo verificará as credenciais, buscará os scripts publicados via Workers & Pages e
+   preencherá automaticamente a etapa “Servidores Jump AB”.
+5. **Gerar link de teste**: ao conectar lojas e mapeamentos, use a seção “Gerar link de teste”
    para criar um checkout real/simulado para validação.
-5. **Simular interceptação**: use o formulário “Simular Interceptação Edge” para enviar
+6. **Simular interceptação**: use o formulário “Simular Interceptação Edge” para enviar
    `product_x_id` e contexto. O protótipo retorna a URL de checkout e registra o evento.
-6. **Webhooks**: envie requisições de teste para `/api/webhooks/order-paid` para simular
+7. **Webhooks**: envie requisições de teste para `/api/webhooks/order-paid` para simular
    confirmações de pagamento e observe o dashboard ser atualizado.
 
 ## Conformidade e salvaguardas inclusas
