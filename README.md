@@ -95,11 +95,21 @@ que encapsula o endpoint `/api/edge/intercept` do backend Express:
 3. Faça o deploy manual ou deixe o GitHub Actions/Cloudflare Pages executar `npx wrangler deploy`.
    O arquivo `wrangler.toml` agora aponta para `worker.js` na raiz, que por sua vez reexporta o
    módulo em `cloudflare/worker.js`, eliminando o erro de entry-point visto anteriormente.
+4. Opcionalmente defina `GITHUB_STATIC_BASE` com o caminho raw do branch que hospeda esta UI.
+   Quando esse valor não é informado, o Worker usa o branch `codex/develop-checkout-routing-system-prototype`
+   do repositório público como origem padrão dos assets.
 
-O script `cloudflare/worker.js` continua responsável por aceitar `POST` com JSON, encaminhar para o
-backend e preservar o payload/resposta, adicionando CORS básico e um `GET` de saúde. Em produção
-você pode evoluir o Worker para executar toda a lógica de roteamento diretamente no edge ou
-consultar configurações via KV/Durable Objects.
+O script `cloudflare/worker.js` agora executa três papéis:
+
+- aceitar `POST` com JSON, encaminhar para o backend configurado e preservar payload/resposta,
+  adicionando CORS básico e a identificação do worker;
+- servir os arquivos estáticos (`index.html`, `src/frontend/*`) diretamente do GitHub, permitindo
+  validar a interface hospedada em Workers & Pages sem pipeline adicional;
+- encaminhar qualquer chamada `GET/POST/PUT/...` para `/api/*` e `/webhooks/*` ao backend (derivando
+  a URL base a partir de `BACKEND_BASE_URL` ou, automaticamente, de `BACKEND_INTERCEPT_URL`).
+
+Em produção você pode evoluir o Worker para executar toda a lógica de roteamento diretamente no
+edge ou consultar configurações via KV/Durable Objects.
 
 ---
 
