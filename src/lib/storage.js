@@ -1,15 +1,16 @@
-import { readFile, writeFile, access } from 'fs/promises';
+import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import { constants } from 'fs';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
 import { defaultConfig } from '../config/defaultConfig.js';
 
-const DATA_PATH = resolve('./data/config.json');
+const DATA_PATH = resolve(process.env.CONFIG_PATH ?? './data/config.json');
 
 async function ensureConfigFile() {
   try {
     await access(DATA_PATH, constants.F_OK);
   } catch (error) {
     if (error.code === 'ENOENT') {
+      await mkdir(dirname(DATA_PATH), { recursive: true });
       await writeFile(DATA_PATH, JSON.stringify(defaultConfig, null, 2));
     } else {
       throw error;
@@ -24,6 +25,7 @@ async function loadConfig() {
 }
 
 async function saveConfig(config) {
+  await mkdir(dirname(DATA_PATH), { recursive: true });
   await writeFile(DATA_PATH, JSON.stringify(config, null, 2));
 }
 

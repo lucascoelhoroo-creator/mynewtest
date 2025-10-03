@@ -1,5 +1,14 @@
-import fetch from 'node-fetch';
 import { pushEvent } from '../lib/storage.js';
+
+let runtimeFetch = globalThis.fetch;
+
+async function callFetch(...args) {
+  if (!runtimeFetch) {
+    const module = await import('node-fetch');
+    runtimeFetch = module.default;
+  }
+  return runtimeFetch(...args);
+}
 
 const CHECKOUT_MUTATION = `#graphql
 mutation CreateCheckout($input: CheckoutCreateInput!) {
@@ -38,7 +47,7 @@ export async function createShopifyCheckout({
   }
 
   const endpoint = `https://${shopDomain}/admin/api/2024-04/graphql.json`;
-  const response = await fetch(endpoint, {
+  const response = await callFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
