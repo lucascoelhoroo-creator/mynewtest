@@ -2,8 +2,8 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AB Jump – Shopify Checkout Routing Prototype</title>
+    <meta http-equiv="refresh" content="0; url=/index.html" />
+    <title>AB Jump – Interface Principal</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -11,165 +11,15 @@
       <header>
         <h1>AB Jump</h1>
         <p class="subtitle">
-          Roteie clientes para checkouts autorizados com transparência e conformidade.
+          Esta interface agora está disponível em <a href="/index.html">/index.html</a>.
         </p>
       </header>
-
-      <section class="card" id="onboarding">
-        <h2>1. Conectar Lojas Shopify</h2>
-        <p>Instale o app nas lojas de origem (Site A) e destino (Site B) com OAuth.</p>
-        <form id="shop-form">
-          <div class="field">
-            <label for="role">Tipo de loja</label>
-            <select id="role" required>
-              <option value="siteA">Site A (Origem)</option>
-              <option value="siteB">Site B (Destino)</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="shopDomain">Domínio da loja</label>
-            <input id="shopDomain" placeholder="ex: loja-a.myshopify.com" required />
-          </div>
-          <div class="field">
-            <label for="adminAccessToken">Token Admin API (opcional no protótipo)</label>
-            <input id="adminAccessToken" placeholder="shpat_..." />
-          </div>
-          <button type="submit">Salvar loja</button>
-        </form>
-        <pre id="shop-list" class="preview"></pre>
-      </section>
-
-      <section class="card">
-        <h2>2. Mapeamentos de Produtos</h2>
-        <form id="mapping-form">
-          <div class="two-columns">
-            <div class="field">
-              <label for="mappingId">ID da Regra</label>
-              <input id="mappingId" required placeholder="map-1" />
-            </div>
-            <div class="field">
-              <label for="channel">Canal (opcional)</label>
-              <input id="channel" placeholder="online_store" />
-            </div>
-          </div>
-          <div class="two-columns">
-            <div class="field">
-              <label for="productA">Produto Site A</label>
-              <input id="productA" required placeholder="gid://shopify/Product/1" />
-            </div>
-            <div class="field">
-              <label for="variantB">Produto/Variante Site B</label>
-              <input id="variantB" required placeholder="gid://shopify/ProductVariant/2" />
-            </div>
-          </div>
-          <div class="two-columns">
-            <div class="field">
-              <label for="shopA">Loja Origem</label>
-              <input id="shopA" required placeholder="loja-a.myshopify.com" />
-            </div>
-            <div class="field">
-              <label for="shopB">Loja Destino</label>
-              <input id="shopB" required placeholder="loja-b.myshopify.com" />
-            </div>
-          </div>
-          <button type="submit">Salvar mapeamento</button>
-        </form>
-        <pre id="mapping-list" class="preview"></pre>
-      </section>
-
-      <section class="card">
-        <h2>3. Políticas de Roteamento</h2>
-        <form id="policy-form">
-          <div class="two-columns">
-            <div class="field">
-              <label for="policyId">ID da Política</label>
-              <input id="policyId" required placeholder="policy-br" />
-            </div>
-            <div class="field">
-              <label for="regions">Regiões permitidas (CSV)</label>
-              <input id="regions" placeholder="BR,PT" />
-            </div>
-          </div>
-          <div class="field">
-            <label for="languages">Idiomas (CSV)</label>
-            <input id="languages" placeholder="pt-BR,en" />
-          </div>
-          <div class="field">
-            <label for="channels">Canais (CSV)</label>
-            <input id="channels" placeholder="online_store" />
-          </div>
-          <label class="checkbox">
-            <input type="checkbox" id="policyEnabled" checked /> Política ativa
-          </label>
-          <button type="submit">Salvar política</button>
-        </form>
-        <pre id="policy-list" class="preview"></pre>
-      </section>
-
-      <section class="card">
-        <h2>4. Mensagem de Consentimento</h2>
-        <form id="consent-form">
-          <div class="field">
-            <label for="consentMessage">Mensagem</label>
-            <textarea id="consentMessage" rows="3"></textarea>
-          </div>
-          <div class="two-columns">
-            <div class="field">
-              <label for="ctaProceed">CTA Prosseguir</label>
-              <input id="ctaProceed" />
-            </div>
-            <div class="field">
-              <label for="ctaCancel">CTA Cancelar</label>
-              <input id="ctaCancel" />
-            </div>
-          </div>
-          <label class="checkbox">
-            <input type="checkbox" id="consentEnabled" checked /> Exigir consentimento
-          </label>
-          <button type="submit">Atualizar consentimento</button>
-        </form>
-      </section>
-
-      <section class="card" id="dashboard">
-        <h2>Dashboard de Monitoramento</h2>
-        <div id="metrics" class="metrics"></div>
-        <pre id="events" class="preview"></pre>
-      </section>
-
-      <section class="card" id="consent-simulator">
-        <h2>Simular Interceptação Edge</h2>
-        <form id="edge-form">
-          <div class="field">
-            <label for="edgeProduct">product_x_id</label>
-            <input id="edgeProduct" required />
-          </div>
-          <div class="two-columns">
-            <div class="field">
-              <label for="edgeRegion">Região</label>
-              <input id="edgeRegion" placeholder="BR" />
-            </div>
-            <div class="field">
-              <label for="edgeLanguage">Idioma</label>
-              <input id="edgeLanguage" placeholder="pt-BR" />
-            </div>
-          </div>
-          <div class="field">
-            <label for="edgeChannel">Canal</label>
-            <input id="edgeChannel" placeholder="online_store" />
-          </div>
-          <button type="submit">Executar decisão</button>
-        </form>
-        <div id="edge-result" class="preview"></div>
-      </section>
+      <p>Se o redirecionamento não acontecer automaticamente, utilize o link acima.</p>
     </main>
-
-    <footer>
-      <p>
-        Este protótipo não processa pagamentos diretamente. Tudo é redirecionado para o
-        checkout oficial da Shopify após consentimento explícito do cliente.
-      </p>
-    </footer>
-
-    <script type="module" src="main.js"></script>
+    <script type="module">
+      if (typeof window !== 'undefined') {
+        window.location.replace('/index.html');
+      }
+    </script>
   </body>
 </html>

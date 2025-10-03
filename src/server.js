@@ -23,10 +23,14 @@ api.use('/webhooks', webhookRoutes);
 
 app.use('/api', api);
 
-app.use(express.static(path.join(__dirname, 'frontend')));
+const frontendDir = path.join(__dirname, 'frontend');
+const rootIndexPath = path.join(__dirname, '..', 'index.html');
+
+app.use(express.static(frontendDir));
+app.use('/src/frontend', express.static(frontendDir));
 
 app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+  res.sendFile(rootIndexPath);
 });
 
 const port = process.env.PORT || 3000;
