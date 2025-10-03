@@ -1,27 +1,175 @@
-async function fetchJSON(url, options) {
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-  });
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || 'Request failed');
+const config = window.AB_JUMP_CONFIG ?? {};
+
+function normaliseBase(value) {
+  if (!value) return '';
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+function isAbsoluteUrl(value) {
+  return /^https?:\/\//i.test(value);
+}
+
+function buildUrl(path, base) {
+  if (isAbsoluteUrl(path)) {
+    return path;
   }
-  if (response.status === 204) {
-    return null;
+  const normalised = path.startsWith('/') ? path : `/${path}`;
+  if (!base) {
+    return normalised;
   }
-  return response.json();
+  return `${base}${normalised}`;
+}
+
+const API_BASE = normaliseBase(config.apiBase || '');
+const EDGE_PROXY_BASE = normaliseBase(config.edgeProxyBase || '');
+
+function shouldSkipHealthCheck(endpoint, usingRemoteWorker) {
+  if (usingRemoteWorker) {
+    return true;
+  }
+  if (!isAbsoluteUrl(endpoint)) {
+    return false;
+  }
+  const reference = API_BASE || window.location.origin;
+  if (!reference) {
+    return false;
+  }
+  return !endpoint.startsWith(reference);
+}
+
+const state = {
+  backendHealthy: null,
+  hideBannerTimeout: null
+};
+
+const connectivityBanner = document.getElementById('connectivity-banner');
+if (connectivityBanner) {
+  connectivityBanner.hidden = false;
+  connectivityBanner.classList.remove('banner-success', 'banner-error');
+  connectivityBanner.classList.add('banner-info');
+  connectivityBanner.textContent = 'Validando conexão com o backend...';
+}
+
+function setBackendHealth(isHealthy, message = '') {
+  if (!connectivityBanner) {
+    return;
+  }
+
+  if (isHealthy) {
+    if (state.backendHealthy === true && !connectivityBanner.classList.contains('banner-error')) {
+      return;
+    }
+    state.backendHealthy = true;
+    connectivityBanner.hidden = false;
+    connectivityBanner.classList.remove('banner-info', 'banner-error');
+    connectivityBanner.classList.add('banner-success');
+    connectivityBanner.textContent = message || 'Conectado ao backend.';
+    if (state.hideBannerTimeout) {
+      clearTimeout(state.hideBannerTimeout);
+    }
+    state.hideBannerTimeout = setTimeout(() => {
+      connectivityBanner.hidden = true;
+    }, 2200);
+    return;
+  }
+
+  state.backendHealthy = false;
+  connectivityBanner.hidden = false;
+  connectivityBanner.classList.remove('banner-info', 'banner-success');
+  connectivityBanner.classList.add('banner-error');
+  connectivityBanner.textContent = message || 'Não foi possível contatar o backend.';
+  if (state.hideBannerTimeout) {
+    clearTimeout(state.hideBannerTimeout);
+    state.hideBannerTimeout = null;
+  }
+}
+
+function showFeedback(elementId, message, tone = 'info') {
+  const element = document.getElementById(elementId);
+  if (!element) {
+    return;
+  }
+  element.classList.remove('feedback-info', 'feedback-success', 'feedback-error');
+  if (!message) {
+    element.textContent = '';
+    element.hidden = true;
+    return;
+  }
+  element.hidden = false;
+  element.textContent = message;
+  element.classList.add(`feedback-${tone}`);
+}
+
+async function fetchJSON(path, options = {}) {
+  const { skipHealthUpdate, ...rest } = options;
+  const targetUrl = buildUrl(path, API_BASE);
+  const init = {
+    ...rest,
+    headers: new Headers(rest.headers ?? {})
+  };
+
+  if (init.mode === undefined) {
+    delete init.mode;
+  }
+
+  if (!init.headers.has('Accept')) {
+    init.headers.set('Accept', 'application/json');
+  }
+
+  if (init.body && !init.headers.has('Content-Type')) {
+    init.headers.set('Content-Type', 'application/json');
+  }
+
+  try {
+    const response = await fetch(targetUrl, init);
+    const contentType = response.headers.get('content-type') ?? '';
+    let bodyText = '';
+
+    if (response.status !== 204) {
+      bodyText = await response.text();
+    }
+
+    let jsonBody = null;
+    if (bodyText && contentType.includes('application/json')) {
+      try {
+        jsonBody = JSON.parse(bodyText);
+      } catch (error) {
+        jsonBody = null;
+      }
+    }
+
+    if (!response.ok) {
+      const message =
+        jsonBody?.message ||
+        jsonBody?.error ||
+        (typeof bodyText === 'string' && bodyText.trim() ? bodyText : response.statusText || 'Request failed');
+      throw new Error(message);
+    }
+
+    if (!skipHealthUpdate) {
+      setBackendHealth(true);
+    }
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    return jsonBody ?? bodyText ?? null;
+  } catch (error) {
+    if (!skipHealthUpdate) {
+      setBackendHealth(false, error.message);
+    }
+    throw error;
+  }
 }
 
 let cachedEdgeWorkers = [];
 
-async function refreshShops() {
-  const shops = await fetchJSON('/api/onboarding/shops');
-  document.getElementById('shop-list').textContent = JSON.stringify(shops, null, 2);
-}
-
 function renderMappingOptions(mappings) {
   const select = document.getElementById('testMapping');
+  if (!select) {
+    return;
+  }
   select.innerHTML = '<option value="">Selecione um mapeamento</option>';
   mappings.forEach((mapping) => {
     const option = document.createElement('option');
@@ -34,10 +182,32 @@ function renderMappingOptions(mappings) {
   select.disabled = mappings.length === 0;
 }
 
+async function refreshShops() {
+  const output = document.getElementById('shop-list');
+  if (!output) {
+    return;
+  }
+  try {
+    const shops = await fetchJSON('/api/onboarding/shops');
+    output.textContent = JSON.stringify(shops, null, 2);
+  } catch (error) {
+    output.textContent = `Erro ao carregar lojas: ${error.message}`;
+  }
+}
+
 async function refreshMappings() {
-  const mappings = await fetchJSON('/api/onboarding/mappings');
-  document.getElementById('mapping-list').textContent = JSON.stringify(mappings, null, 2);
-  renderMappingOptions(mappings);
+  const output = document.getElementById('mapping-list');
+  if (!output) {
+    return;
+  }
+  try {
+    const mappings = await fetchJSON('/api/onboarding/mappings');
+    output.textContent = JSON.stringify(mappings, null, 2);
+    renderMappingOptions(mappings);
+  } catch (error) {
+    output.textContent = `Erro ao carregar mapeamentos: ${error.message}`;
+    renderMappingOptions([]);
+  }
 }
 
 function updateEdgeWorkerSelect(workers) {
@@ -47,7 +217,12 @@ function updateEdgeWorkerSelect(workers) {
   }
 
   const previousValue = select.value;
-  select.innerHTML = '<option value="local">Servidor local (Express)</option>';
+  select.innerHTML = '';
+
+  const localOption = document.createElement('option');
+  localOption.value = 'local';
+  localOption.textContent = 'Servidor local (Express)';
+  select.appendChild(localOption);
 
   workers.forEach((worker) => {
     const option = document.createElement('option');
@@ -63,10 +238,20 @@ function updateEdgeWorkerSelect(workers) {
 }
 
 async function refreshEdgeWorkers() {
-  const workers = await fetchJSON('/api/onboarding/edge-workers');
-  cachedEdgeWorkers = workers;
-  document.getElementById('edge-worker-list').textContent = JSON.stringify(workers, null, 2);
-  updateEdgeWorkerSelect(workers);
+  const output = document.getElementById('edge-worker-list');
+  if (!output) {
+    return;
+  }
+  try {
+    const workers = await fetchJSON('/api/onboarding/edge-workers');
+    cachedEdgeWorkers = workers;
+    output.textContent = JSON.stringify(workers, null, 2);
+    updateEdgeWorkerSelect(workers);
+  } catch (error) {
+    cachedEdgeWorkers = [];
+    output.textContent = `Erro ao carregar servidores: ${error.message}`;
+    updateEdgeWorkerSelect([]);
+  }
 }
 
 async function refreshCloudflareStatus() {
@@ -98,9 +283,39 @@ const metricLabels = {
   failed: 'Falhas'
 };
 
-function renderMetrics(totals, edgeWorkersConnected) {
+function renderMetrics(totals = {}, edgeWorkersConnected = 0) {
   const metricsContainer = document.getElementById('metrics');
-  metricsContainer.innerHTML = Object.entries(totals)
+  if (!metricsContainer) {
+    return;
+  }
+  const entries = Object.entries(totals);
+  if (!entries.length) {
+    metricsContainer.innerHTML = `
+      <div class="metric-card">
+        <strong>0</strong>
+        <div>Sessões registradas</div>
+      </div>
+      <div class="metric-card">
+        <strong>0</strong>
+        <div>Checkout pronto</div>
+      </div>
+      <div class="metric-card">
+        <strong>0</strong>
+        <div>Pedidos pagos</div>
+      </div>
+      <div class="metric-card">
+        <strong>0</strong>
+        <div>Falhas</div>
+      </div>
+      <div class="metric-card">
+        <strong>${edgeWorkersConnected}</strong>
+        <div>Servidores Jump AB</div>
+      </div>
+    `;
+    return;
+  }
+
+  metricsContainer.innerHTML = entries
     .map(
       ([key, value]) => `
         <div class="metric-card">
@@ -122,86 +337,151 @@ function renderMetrics(totals, edgeWorkersConnected) {
 }
 
 async function refreshDashboard() {
-  const { totals, edgeWorkersConnected } = await fetchJSON('/api/dashboard/metrics');
-  renderMetrics(totals, edgeWorkersConnected);
-  const events = await fetchJSON('/api/dashboard/events');
-  document.getElementById('events').textContent = JSON.stringify(events, null, 2);
+  try {
+    const { totals = {}, edgeWorkersConnected = 0 } = await fetchJSON('/api/dashboard/metrics');
+    renderMetrics(totals, edgeWorkersConnected);
+  } catch (error) {
+    renderMetrics({}, 0);
+  }
+
+  const eventsOutput = document.getElementById('events');
+  if (!eventsOutput) {
+    return;
+  }
+  try {
+    const events = await fetchJSON('/api/dashboard/events');
+    eventsOutput.textContent = JSON.stringify(events, null, 2);
+  } catch (error) {
+    eventsOutput.textContent = `Erro ao carregar eventos: ${error.message}`;
+  }
 }
 
 async function refreshStatus() {
-  const status = await fetchJSON('/api/onboarding/status');
   const container = document.getElementById('status-summary');
-  container.innerHTML = `
-    <ul>
-      <li>Lojas origem conectadas: <strong>${status.siteAConnected ? 'Sim' : 'Não'}</strong></li>
-      <li>Lojas destino conectadas: <strong>${status.siteBConnected ? 'Sim' : 'Não'}</strong></li>
-      <li>Mapeamentos prontos: <strong>${status.mappingsReady ? 'Sim' : 'Não'}</strong></li>
-      <li>Servidores Jump AB: <strong>${status.workersConnected}</strong></li>
-      <li>Conta Cloudflare: <strong>${status.cloudflareConnected ? 'Sincronizada' : 'Pendente'}</strong></li>
-    </ul>
-  `;
-  const button = document.getElementById('generate-test-link');
-  button.disabled = !status.ready;
   const helper = document.getElementById('test-link-helper');
-  helper.textContent = status.ready
-    ? 'Selecione um mapeamento e gere um link de checkout para validar o fluxo.'
-    : 'Conecte ao menos uma loja de origem, uma de destino e crie um mapeamento ativo para liberar o link de teste.';
+  const button = document.getElementById('generate-test-link');
+  if (!container || !helper || !button) {
+    return;
+  }
+  try {
+    const status = await fetchJSON('/api/onboarding/status');
+    container.innerHTML = `
+      <ul>
+        <li>Lojas origem conectadas: <strong>${status.siteAConnected ? 'Sim' : 'Não'}</strong></li>
+        <li>Lojas destino conectadas: <strong>${status.siteBConnected ? 'Sim' : 'Não'}</strong></li>
+        <li>Mapeamentos prontos: <strong>${status.mappingsReady ? 'Sim' : 'Não'}</strong></li>
+        <li>Servidores Jump AB: <strong>${status.workerCount ?? 0}</strong></li>
+        <li>Conta Cloudflare: <strong>${status.cloudflareConnected ? 'Sincronizada' : 'Pendente'}</strong></li>
+      </ul>
+    `;
+    button.disabled = !status.ready;
+    helper.textContent = status.ready
+      ? 'Selecione um mapeamento e gere um link de checkout para validar o fluxo.'
+      : 'Conecte ao menos uma loja de origem, uma de destino e crie um mapeamento ativo para liberar o link de teste.';
+  } catch (error) {
+    container.textContent = `Não foi possível carregar o status: ${error.message}`;
+    button.disabled = true;
+    helper.textContent = 'Verifique a conexão com o backend antes de gerar o link de teste.';
+  }
+}
+
+function buildLocalEdgeEndpoint() {
+  if (EDGE_PROXY_BASE) {
+    return `${EDGE_PROXY_BASE}/api/edge/intercept`;
+  }
+  return '/api/edge/intercept';
 }
 
 async function init() {
-  document.getElementById('shop-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const role = document.getElementById('role').value;
-    const shopDomain = document.getElementById('shopDomain').value;
-    const adminAccessToken = document.getElementById('adminAccessToken').value || undefined;
-    await fetchJSON('/api/onboarding/shops', {
-      method: 'POST',
-      body: JSON.stringify({ role, shopDomain, adminAccessToken })
-    });
-    await refreshShops();
-    await refreshStatus();
-    event.target.reset();
-  });
+  const shopForm = document.getElementById('shop-form');
+  if (shopForm) {
+    shopForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showFeedback('shop-feedback', 'Salvando loja...', 'info');
+      const payload = {
+        role: document.getElementById('role').value,
+        shopDomain: document.getElementById('shopDomain').value,
+        adminAccessToken: document.getElementById('adminAccessToken').value || undefined
+      };
 
-  document.getElementById('mapping-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const payload = {
-      id: document.getElementById('mappingId').value,
-      channel: document.getElementById('channel').value || undefined,
-      siteAProductId: document.getElementById('productA').value,
-      siteBProductId: document.getElementById('variantB').value,
-      siteBVariantId: document.getElementById('variantB').value,
-      siteAShopDomain: document.getElementById('shopA').value,
-      siteBShopDomain: document.getElementById('shopB').value
-    };
-    await fetchJSON('/api/onboarding/mappings', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-    await refreshMappings();
-    await refreshStatus();
-    event.target.reset();
-  });
+      try {
+        await fetchJSON('/api/onboarding/shops', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        showFeedback('shop-feedback', 'Loja salva com sucesso.', 'success');
+        shopForm.reset();
+      } catch (error) {
+        showFeedback('shop-feedback', `Falha ao salvar loja: ${error.message}`, 'error');
+      }
 
-  document.getElementById('edge-worker-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const payload = {
-      id: document.getElementById('edgeWorkerId').value,
-      label: document.getElementById('edgeWorkerLabel').value || undefined,
-      endpointUrl: document.getElementById('edgeWorkerUrl').value,
-      regions: document.getElementById('edgeWorkerRegions').value
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-    };
-    await fetchJSON('/api/onboarding/edge-workers', {
-      method: 'POST',
-      body: JSON.stringify(payload)
+      await refreshShops();
+      await refreshStatus();
     });
-    await refreshEdgeWorkers();
-    await refreshStatus();
-    event.target.reset();
-  });
+  }
+
+  const mappingForm = document.getElementById('mapping-form');
+  if (mappingForm) {
+    mappingForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showFeedback('mapping-feedback', 'Salvando mapeamento...', 'info');
+      const payload = {
+        id: document.getElementById('mappingId').value,
+        channel: document.getElementById('channel').value || undefined,
+        siteAProductId: document.getElementById('productA').value,
+        siteBProductId: document.getElementById('variantB').value,
+        siteBVariantId: document.getElementById('variantB').value,
+        siteAShopDomain: document.getElementById('shopA').value,
+        siteBShopDomain: document.getElementById('shopB').value
+      };
+
+      try {
+        await fetchJSON('/api/onboarding/mappings', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        showFeedback('mapping-feedback', 'Mapeamento salvo com sucesso.', 'success');
+        mappingForm.reset();
+      } catch (error) {
+        showFeedback('mapping-feedback', `Falha ao salvar mapeamento: ${error.message}`, 'error');
+      }
+
+      await refreshMappings();
+      await refreshStatus();
+    });
+  }
+
+  const edgeWorkerForm = document.getElementById('edge-worker-form');
+  if (edgeWorkerForm) {
+    edgeWorkerForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      showFeedback('edge-worker-feedback', 'Registrando servidor...', 'info');
+      const payload = {
+        id: document.getElementById('edgeWorkerId').value,
+        label: document.getElementById('edgeWorkerLabel').value || undefined,
+        endpointUrl: document.getElementById('edgeWorkerUrl').value,
+        regions: document
+          .getElementById('edgeWorkerRegions')
+          .value.split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      };
+
+      try {
+        await fetchJSON('/api/onboarding/edge-workers', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        showFeedback('edge-worker-feedback', 'Servidor salvo com sucesso.', 'success');
+        edgeWorkerForm.reset();
+      } catch (error) {
+        showFeedback('edge-worker-feedback', `Falha ao salvar servidor: ${error.message}`, 'error');
+      }
+
+      await refreshEdgeWorkers();
+      await refreshStatus();
+    });
+  }
 
   const cloudflareForm = document.getElementById('cloudflare-form');
   if (cloudflareForm) {
@@ -230,109 +510,130 @@ async function init() {
     });
   }
 
-  document.getElementById('generate-test-link').addEventListener('click', async () => {
-    const mappingSelect = document.getElementById('testMapping');
-    const mappingId = mappingSelect.value;
-    if (!mappingId) {
-      alert('Selecione um mapeamento válido.');
-      return;
-    }
-    try {
-      const result = await fetchJSON('/api/onboarding/test-link', {
-        method: 'POST',
-        body: JSON.stringify({ mappingId })
-      });
-      document.getElementById('test-link-output').innerHTML = `
-        <p>Link gerado com sucesso!</p>
-        ${result.originShop ? `<p>Origem: <strong>${result.originShop}</strong></p>` : ''}
-        ${result.targetShop ? `<p>Destino: <strong>${result.targetShop}</strong></p>` : ''}
-        ${result.edgeWorker ? `<p>Servidor: <strong>${result.edgeWorker.label || result.edgeWorker.id}</strong></p>` : ''}
-        <a href="${result.checkoutUrl}" target="_blank" rel="noopener">Abrir checkout de teste</a>
-      `;
-      await refreshDashboard();
-    } catch (error) {
-      document.getElementById('test-link-output').textContent = error.message;
-    }
-  });
-
-  document.getElementById('edge-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const payload = {
-      product_x_id: document.getElementById('edgeProduct').value,
-      channel: document.getElementById('edgeChannel').value || undefined,
-      quantity: Number(document.getElementById('edgeQuantity').value || '1')
-    };
-    const workerSelect = document.getElementById('edgeWorkerSelect');
-    const runner = workerSelect ? workerSelect.value : 'local';
-    const usingRemoteWorker = runner && runner !== 'local';
-    let endpoint = '/api/edge/intercept';
-
-    if (usingRemoteWorker) {
-      const remoteWorker = cachedEdgeWorkers.find((worker) => worker.id === runner);
-      if (!remoteWorker || !remoteWorker.endpointUrl) {
-        document.getElementById('edge-result').textContent = 'Worker selecionado não possui endpoint válido.';
+  const testButton = document.getElementById('generate-test-link');
+  if (testButton) {
+    testButton.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const mappingSelect = document.getElementById('testMapping');
+      const output = document.getElementById('test-link-output');
+      if (!mappingSelect.value) {
+        output.textContent = 'Selecione um mapeamento válido antes de gerar o checkout.';
         return;
       }
-      endpoint = remoteWorker.endpointUrl;
-    }
 
-    try {
-      const requestOptions = {
-        method: 'POST',
-        body: JSON.stringify(payload)
+      const originalLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Gerando...';
+      output.textContent = 'Gerando checkout de teste...';
+
+      try {
+        const result = await fetchJSON('/api/onboarding/test-link', {
+          method: 'POST',
+          body: JSON.stringify({ mappingId: mappingSelect.value })
+        });
+        output.innerHTML = `
+          <p>Link gerado com sucesso!</p>
+          ${result.originShop ? `<p>Origem: <strong>${result.originShop}</strong></p>` : ''}
+          ${result.targetShop ? `<p>Destino: <strong>${result.targetShop}</strong></p>` : ''}
+          ${result.edgeWorker ? `<p>Servidor: <strong>${result.edgeWorker.label || result.edgeWorker.id}</strong></p>` : ''}
+          <a href="${result.checkoutUrl}" target="_blank" rel="noopener">Abrir checkout de teste</a>
+        `;
+        await refreshDashboard();
+      } catch (error) {
+        output.textContent = `Falha ao gerar link: ${error.message}`;
+      }
+
+      button.textContent = originalLabel;
+      await refreshStatus();
+    });
+  }
+
+  const edgeForm = document.getElementById('edge-form');
+  if (edgeForm) {
+    edgeForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const output = document.getElementById('edge-result');
+      const payload = {
+        product_x_id: document.getElementById('edgeProduct').value,
+        channel: document.getElementById('edgeChannel').value || undefined,
+        quantity: Number(document.getElementById('edgeQuantity').value || '1')
       };
+
+      const workerSelect = document.getElementById('edgeWorkerSelect');
+      const runner = workerSelect ? workerSelect.value : 'local';
+      const usingRemoteWorker = runner && runner !== 'local';
+
+      let endpoint = buildLocalEdgeEndpoint();
       if (usingRemoteWorker) {
-        requestOptions.mode = 'cors';
+        const remoteWorker = cachedEdgeWorkers.find((worker) => worker.id === runner);
+        if (!remoteWorker || !remoteWorker.endpointUrl) {
+          output.textContent = 'Worker selecionado não possui endpoint válido cadastrado.';
+          return;
+        }
+        endpoint = remoteWorker.endpointUrl;
       }
 
-      const result = await fetchJSON(endpoint, requestOptions);
-      document.getElementById('edge-result').innerHTML = `
-        <p>Status: <strong>${result.status}</strong></p>
-        ${result.originShop ? `<p>Origem: ${result.originShop}</p>` : ''}
-        ${result.targetShop ? `<p>Destino: ${result.targetShop}</p>` : ''}
-        ${result.edgeWorker ? `<p>Servidor: ${result.edgeWorker.label || result.edgeWorker.id}</p>` : ''}
-        <p>Execução: ${usingRemoteWorker ? 'Worker Cloudflare selecionado' : 'Backend local'}</p>
-        ${result.checkoutUrl ? `<a href="${result.checkoutUrl}" target="_blank" rel="noopener">Abrir checkout seguro</a>` : ''}
-      `;
-    } catch (error) {
-      document.getElementById('edge-result').textContent = error.message;
-    }
-    await refreshDashboard();
-  });
+      output.textContent = 'Executando decisão de roteamento...';
 
-  document.getElementById('ping-worker').addEventListener('click', async () => {
-    const select = document.getElementById('edgeWorkerSelect');
-    const output = document.getElementById('edge-worker-health');
-    if (!select || !output) {
-      return;
-    }
-
-    if (select.value === 'local') {
-      output.textContent = 'O backend local Express está habilitado automaticamente para interceptações de teste.';
-      return;
-    }
-
-    const worker = cachedEdgeWorkers.find((entry) => entry.id === select.value);
-    if (!worker || !worker.endpointUrl) {
-      output.textContent = 'Worker selecionado não possui endpoint válido cadastrado.';
-      return;
-    }
-
-    try {
-      const response = await fetch(worker.endpointUrl, {
-        method: 'GET',
-        mode: 'cors'
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new Error(body || `Status ${response.status}`);
+      try {
+        const result = await fetchJSON(endpoint, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          mode: usingRemoteWorker ? 'cors' : undefined,
+          skipHealthUpdate: shouldSkipHealthCheck(endpoint, usingRemoteWorker)
+        });
+        output.innerHTML = `
+          <p>Status: <strong>${result.status}</strong></p>
+          ${result.originShop ? `<p>Origem: ${result.originShop}</p>` : ''}
+          ${result.targetShop ? `<p>Destino: ${result.targetShop}</p>` : ''}
+          ${result.edgeWorker ? `<p>Servidor: ${result.edgeWorker.label || result.edgeWorker.id}</p>` : ''}
+          <p>Execução: ${usingRemoteWorker ? 'Worker Cloudflare selecionado' : 'Backend local'}</p>
+          ${result.checkoutUrl ? `<a href="${result.checkoutUrl}" target="_blank" rel="noopener">Abrir checkout seguro</a>` : ''}
+        `;
+      } catch (error) {
+        output.textContent = `Falha ao executar decisão: ${error.message}`;
       }
-      const data = await response.json();
-      output.textContent = `Worker ativo (${worker.endpointUrl}): ${JSON.stringify(data, null, 2)}`;
-    } catch (error) {
-      output.textContent = `Falha ao consultar o worker: ${error.message}`;
-    }
-  });
+
+      await refreshDashboard();
+    });
+  }
+
+  const pingButton = document.getElementById('ping-worker');
+  if (pingButton) {
+    pingButton.addEventListener('click', async () => {
+      const select = document.getElementById('edgeWorkerSelect');
+      const output = document.getElementById('edge-worker-health');
+      if (!select || !output) {
+        return;
+      }
+
+      if (select.value === 'local') {
+        output.textContent = 'O backend local Express está habilitado automaticamente para interceptações de teste.';
+        return;
+      }
+
+      const worker = cachedEdgeWorkers.find((entry) => entry.id === select.value);
+      if (!worker || !worker.endpointUrl) {
+        output.textContent = 'Worker selecionado não possui endpoint válido cadastrado.';
+        return;
+      }
+
+      try {
+        const response = await fetch(worker.endpointUrl, {
+          method: 'GET',
+          mode: 'cors'
+        });
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(body || `Status ${response.status}`);
+        }
+        const data = await response.json();
+        output.textContent = `Worker ativo (${worker.endpointUrl}): ${JSON.stringify(data, null, 2)}`;
+      } catch (error) {
+        output.textContent = `Falha ao consultar o worker: ${error.message}`;
+      }
+    });
+  }
 
   await refreshShops();
   await refreshMappings();
@@ -344,5 +645,10 @@ async function init() {
 
 init().catch((error) => {
   console.error(error);
-  alert('Erro ao inicializar o protótipo. Verifique o console.');
+  if (connectivityBanner) {
+    connectivityBanner.hidden = false;
+    connectivityBanner.classList.remove('banner-info', 'banner-success');
+    connectivityBanner.classList.add('banner-error');
+    connectivityBanner.textContent = 'Erro ao inicializar a interface. Verifique o console.';
+  }
 });

@@ -49,6 +49,22 @@ A aplicação ficará disponível em `http://localhost:3000`.
 7. **Webhooks**: envie requisições de teste para `/api/webhooks/order-paid` para simular
    confirmações de pagamento e observe o dashboard ser atualizado.
 
+### Ajustando a UI quando servida fora do backend
+
+O `index.html` expõe um pequeno objeto global `window.AB_JUMP_CONFIG` que permite apontar a
+interface para qualquer backend compatível. Dois parâmetros podem ser definidos via querystring
+(`?apiBase=https://minha-api.com&edgeBase=https://meu-worker.com`) ou antes de carregar o
+`main.js`:
+
+- `apiBase` – origem para as chamadas REST (`/api/*`). Quando vazio, usa o mesmo host que serviu
+  a interface.
+- `edgeBase` – origem padrão para simulações de intercept (`/api/edge/intercept`). Útil quando o
+  worker da Cloudflare está em outro domínio.
+
+O banner de conectividade no topo da página indica se a UI está conseguindo falar com o backend.
+Em caso de erro, as seções permanecem acessíveis, mas exibem mensagens de diagnóstico em vez de
+falhar silenciosamente.
+
 ## Conformidade e salvaguardas inclusas
 
 - **Transparência** – Logs completos das decisões de roteamento, origem/destino e servidor

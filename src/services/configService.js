@@ -70,7 +70,8 @@ export async function getOnboardingStatus() {
       config.shops.siteA.some((shop) => shop.shopDomain === mapping.siteAShopDomain) &&
       config.shops.siteB.some((shop) => shop.shopDomain === mapping.siteBShopDomain)
   );
-  const workersConnected = config.edgeWorkers.length > 0;
+  const workerCount = config.edgeWorkers.length;
+  const workersConnected = workerCount > 0;
   const cloudflareConnected = Boolean(config.cloudflareAccount);
   const ready = siteAConnected && siteBConnected && mappingsReady;
   return {
@@ -78,6 +79,7 @@ export async function getOnboardingStatus() {
     siteBConnected,
     mappingsReady,
     workersConnected,
+    workerCount,
     cloudflareConnected,
     ready
   };

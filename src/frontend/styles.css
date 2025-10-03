@@ -10,6 +10,38 @@ body {
   background: #f5f6f8;
 }
 
+.banner {
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: none;
+}
+
+.banner-info {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.banner-success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.banner-error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.banner[hidden] {
+  display: none;
+}
+
+.banner:not([hidden]) {
+  display: block;
+}
+
 .container {
   max-width: 960px;
   margin: 0 auto;
@@ -31,6 +63,34 @@ header {
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+}
+
+.feedback {
+  display: none;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.feedback-info {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.feedback-success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.feedback-error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.feedback:not([hidden]) {
+  display: block;
 }
 
 .field {

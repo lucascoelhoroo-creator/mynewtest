@@ -15,6 +15,10 @@
         </p>
       </header>
 
+      <div id="connectivity-banner" class="banner banner-info" hidden>
+        Validando conexão com o backend...
+      </div>
+
       <section class="card" id="onboarding">
         <h2>1. Conectar Lojas Shopify</h2>
         <p>Instale o app nas lojas de origem (Site A) e destino (Site B) com OAuth.</p>
@@ -36,6 +40,7 @@
           </div>
           <button type="submit">Salvar loja</button>
         </form>
+        <div id="shop-feedback" class="feedback" hidden></div>
         <pre id="shop-list" class="preview"></pre>
       </section>
 
@@ -74,6 +79,7 @@
           </div>
           <button type="submit">Salvar mapeamento</button>
         </form>
+        <div id="mapping-feedback" class="feedback" hidden></div>
         <pre id="mapping-list" class="preview"></pre>
       </section>
 
@@ -103,6 +109,7 @@
           </div>
           <button type="submit">Salvar servidor</button>
         </form>
+        <div id="edge-worker-feedback" class="feedback" hidden></div>
         <pre id="edge-worker-list" class="preview"></pre>
       </section>
 
@@ -195,6 +202,18 @@
       </p>
     </footer>
 
+    <script>
+      window.AB_JUMP_CONFIG = window.AB_JUMP_CONFIG || {};
+      (function initialiseConfigFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        if (!window.AB_JUMP_CONFIG.apiBase && params.get('apiBase')) {
+          window.AB_JUMP_CONFIG.apiBase = params.get('apiBase');
+        }
+        if (!window.AB_JUMP_CONFIG.edgeProxyBase && params.get('edgeBase')) {
+          window.AB_JUMP_CONFIG.edgeProxyBase = params.get('edgeBase');
+        }
+      })();
+    </script>
     <script type="module" src="src/frontend/main.js"></script>
   </body>
 </html>
