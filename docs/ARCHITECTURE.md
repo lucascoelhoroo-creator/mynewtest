@@ -34,6 +34,18 @@ Site A (Origem) -> CDN/Edge (Simulado) -> FaaS/Backend -> Shopify Checkout (Site
 - Dados são armazenados em `data/config.json` (gerado automaticamente com defaults). Em produção,
   recomenda-se utilizar banco de dados gerenciado e criptografia de segredos.
 
+## Worker de Referência (Cloudflare)
+
+- O diretório `cloudflare/` contém `worker.js`, que atua como camada edge mínima para encaminhar
+  o `POST /intercept` para o backend Express preservando o payload original e adicionando CORS.
+- O arquivo `wrangler.toml` define o entry-point (`main = "cloudflare/worker.js"`) e um `WORKER_ID`
+  usado para identificar o servidor Jump AB nos eventos.
+- Defina o secret `BACKEND_INTERCEPT_URL` no Worker apontando para o endpoint público do backend.
+  Isso resolve o erro de deploy `Missing entry-point to Worker script or to assets directory`
+  observado no log da Cloudflare.
+- Em produção, substitua o proxy por lógica nativa no Worker (ex.: carregar mapeamentos de KV,
+  chamar Shopify diretamente e registrar eventos em serviços gerenciados).
+
 ## Controles de Segurança e Ética
 
 - Logs incluem apenas IDs e metadados (sem dados sensíveis).

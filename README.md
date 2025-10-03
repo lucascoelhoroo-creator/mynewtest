@@ -37,7 +37,7 @@ A aplicação ficará disponível em `http://localhost:3000`.
 2. **Mapear produtos**: defina pares Produto X (Site A) → Produto Y/Variante (Site B) com IDs
    Globais da Shopify e lojas correspondentes.
 3. **Cadastrar servidores Jump AB**: informe endpoints das funções/edges responsáveis pelo
-   roteamento.
+   roteamento (veja a seção "Publicando um Worker na Cloudflare" para um exemplo pronto).
 4. **Gerar link de teste**: ao conectar lojas e mapeamentos, use a seção “Gerar link de teste”
    para criar um checkout real/simulado para validação.
 5. **Simular interceptação**: use o formulário “Simular Interceptação Edge” para enviar
@@ -68,6 +68,34 @@ A aplicação ficará disponível em `http://localhost:3000`.
 - Implementar notificações assíncronas para o Site A após pagamento (webhooks de saída ou
   eventos em fila).
 - Incluir testes automatizados e validação de payloads com Zod/TypeScript.
+
+
+## Publicando um Worker na Cloudflare (Jump AB)
+
+O log de implantação da Cloudflare indica `Missing entry-point to Worker script or to assets directory`.
+Para que o deploy automático via GitHub funcione é necessário fornecer tanto o arquivo do
+Worker quanto a configuração `wrangler.toml`. O repositório agora inclui um exemplo funcional
+que encapsula o endpoint `/api/edge/intercept` do backend Express:
+
+1. Ajuste o secret `BACKEND_INTERCEPT_URL` do Worker para apontar para o endereço público do
+   backend (ou do ambiente onde o intercept real está hospedado):
+
+   ```bash
+   wrangler secret put BACKEND_INTERCEPT_URL
+   # cole a URL como https://seu-dominio.com/api/edge/intercept
+   ```
+
+2. Opcionalmente personalize o identificador do Worker em `wrangler.toml` (`WORKER_ID`). Esse
+   valor aparecerá no dashboard e nos eventos de roteamento.
+
+3. Faça o deploy manual ou deixe o GitHub Actions/Cloudflare Pages executar `npx wrangler deploy`.
+   Como o arquivo `wrangler.toml` agora aponta para `cloudflare/worker.js`, o erro de entry-point
+   deixa de ocorrer.
+
+O script `cloudflare/worker.js` aceita `POST` com JSON, encaminha para o backend e preserva o
+payload/resposta, adicionando CORS básico e um `GET` de saúde. Em produção você pode evoluir o
+Worker para executar toda a lógica de roteamento diretamente no edge ou consultar configurações
+via KV/Durable Objects.
 
 ---
 
