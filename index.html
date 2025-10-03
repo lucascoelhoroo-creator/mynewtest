@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AB Jump – Shopify Checkout Routing Prototype</title>
+    <link rel="stylesheet" href="src/frontend/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>AB Jump</h1>
+        <p class="subtitle">
+          Roteie clientes para checkouts autorizados com transparência e conformidade.
+        </p>
+      </header>
+
+      <div id="connectivity-banner" class="banner banner-info" hidden>
+        Validando conexão com o backend...
+      </div>
+
+      <section class="card" id="onboarding">
+        <h2>1. Conectar Lojas Shopify</h2>
+        <p>Instale o app nas lojas de origem (Site A) e destino (Site B) com OAuth.</p>
+        <form id="shop-form">
+          <div class="field">
+            <label for="role">Tipo de loja</label>
+            <select id="role" required>
+              <option value="siteA">Site A (Origem)</option>
+              <option value="siteB">Site B (Destino)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="shopDomain">Domínio da loja</label>
+            <input id="shopDomain" placeholder="ex: loja-a.myshopify.com" required />
+          </div>
+          <div class="field">
+            <label for="adminAccessToken">Token Admin API (opcional no protótipo)</label>
+            <input id="adminAccessToken" placeholder="shpat_..." />
+          </div>
+          <button type="submit">Salvar loja</button>
+        </form>
+        <div id="shop-feedback" class="feedback" hidden></div>
+        <pre id="shop-list" class="preview"></pre>
+      </section>
+
+      <section class="card">
+        <h2>2. Mapeamentos de Produtos</h2>
+        <form id="mapping-form">
+          <div class="two-columns">
+            <div class="field">
+              <label for="mappingId">ID da Regra</label>
+              <input id="mappingId" required placeholder="map-1" />
+            </div>
+            <div class="field">
+              <label for="channel">Canal (opcional)</label>
+              <input id="channel" placeholder="online_store" />
+            </div>
+          </div>
+          <div class="two-columns">
+            <div class="field">
+              <label for="productA">Produto Site A</label>
+              <input id="productA" required placeholder="gid://shopify/Product/1" />
+            </div>
+            <div class="field">
+              <label for="variantB">Produto/Variante Site B</label>
+              <input id="variantB" required placeholder="gid://shopify/ProductVariant/2" />
+            </div>
+          </div>
+          <div class="two-columns">
+            <div class="field">
+              <label for="shopA">Loja Origem</label>
+              <input id="shopA" required placeholder="loja-a.myshopify.com" />
+            </div>
+            <div class="field">
+              <label for="shopB">Loja Destino</label>
+              <input id="shopB" required placeholder="loja-b.myshopify.com" />
+            </div>
+          </div>
+          <button type="submit">Salvar mapeamento</button>
+        </form>
+        <div id="mapping-feedback" class="feedback" hidden></div>
+        <pre id="mapping-list" class="preview"></pre>
+      </section>
+
+      <section class="card">
+        <h2>3. Servidores Jump AB</h2>
+        <p>Cadastre os workers ou funções que executarão o roteamento transparente.</p>
+        <form id="edge-worker-form">
+          <div class="two-columns">
+            <div class="field">
+              <label for="edgeWorkerId">ID do Servidor</label>
+              <input id="edgeWorkerId" required placeholder="edge-br-1" />
+            </div>
+            <div class="field">
+              <label for="edgeWorkerLabel">Nome amigável</label>
+              <input id="edgeWorkerLabel" placeholder="CDN São Paulo" />
+            </div>
+          </div>
+          <div class="two-columns">
+            <div class="field">
+              <label for="edgeWorkerUrl">Endpoint</label>
+              <input id="edgeWorkerUrl" required placeholder="https://edge.exemplo.com/intercept" />
+            </div>
+            <div class="field">
+              <label for="edgeWorkerRegions">Regiões atendidas (CSV)</label>
+              <input id="edgeWorkerRegions" placeholder="BR,AR,CL" />
+            </div>
+          </div>
+          <button type="submit">Salvar servidor</button>
+        </form>
+        <div id="edge-worker-feedback" class="feedback" hidden></div>
+        <pre id="edge-worker-list" class="preview"></pre>
+      </section>
+
+      <section class="card" id="cloudflare-connect">
+        <h2>Cloudflare Workers &amp; Pages</h2>
+        <p>
+          Conecte sua conta Cloudflare para importar automaticamente os Workers publicados via
+          GitHub (Workers &amp; Pages) e validar a configuração sem editar manualmente.
+        </p>
+        <form id="cloudflare-form">
+          <div class="two-columns">
+            <div class="field">
+              <label for="cloudflareAccountId">Account ID</label>
+              <input id="cloudflareAccountId" required placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+            </div>
+            <div class="field">
+              <label for="cloudflareApiToken">API Token</label>
+              <input id="cloudflareApiToken" type="password" required placeholder="Token com acesso a Workers" />
+            </div>
+          </div>
+          <button type="submit">Conectar e sincronizar Workers</button>
+        </form>
+        <div id="cloudflare-output" class="preview"></div>
+        <div id="cloudflare-status" class="preview"></div>
+      </section>
+
+      <section class="card" id="test-link">
+        <h2>4. Gerar link de teste</h2>
+        <p id="test-link-helper">Conecte lojas e mapeamentos para liberar o link.</p>
+        <div id="status-summary" class="status"></div>
+        <div class="two-columns">
+          <div class="field">
+            <label for="testMapping">Mapeamento</label>
+            <select id="testMapping" disabled>
+              <option value="">Selecione um mapeamento</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button type="button" id="generate-test-link" disabled>Gerar checkout de teste</button>
+          </div>
+        </div>
+        <div id="test-link-output" class="preview"></div>
+      </section>
+
+      <section class="card" id="dashboard">
+        <h2>Dashboard de Monitoramento</h2>
+        <div id="metrics" class="metrics"></div>
+        <pre id="events" class="preview"></pre>
+      </section>
+
+      <section class="card" id="edge-simulator">
+        <h2>Simular Interceptação Edge</h2>
+        <form id="edge-form">
+          <div class="two-columns">
+            <div class="field">
+              <label for="edgeWorkerSelect">Executar via</label>
+              <select id="edgeWorkerSelect">
+                <option value="local">Servidor local (Express)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button type="button" id="ping-worker">Consultar status do worker</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="edgeProduct">product_x_id</label>
+            <input id="edgeProduct" required />
+          </div>
+          <div class="field">
+            <label for="edgeChannel">Canal</label>
+            <input id="edgeChannel" placeholder="online_store" />
+          </div>
+          <div class="field">
+            <label for="edgeQuantity">Quantidade</label>
+            <input id="edgeQuantity" type="number" min="1" value="1" />
+          </div>
+          <button type="submit">Executar decisão</button>
+        </form>
+        <div id="edge-worker-health" class="preview"></div>
+        <div id="edge-result" class="preview"></div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Este protótipo não processa pagamentos diretamente. Tudo é redirecionado para o
+        checkout oficial da Shopify com aviso transparente sobre a loja responsável.
+      </p>
+    </footer>
+
+    <script>
+      window.AB_JUMP_CONFIG = window.AB_JUMP_CONFIG || {};
+      (function initialiseConfigFromQuery() {
+        const params = new URLSearchParams(window.location.search);
+        if (!window.AB_JUMP_CONFIG.apiBase && params.get('apiBase')) {
+          window.AB_JUMP_CONFIG.apiBase = params.get('apiBase');
+        }
+        if (!window.AB_JUMP_CONFIG.edgeProxyBase && params.get('edgeBase')) {
+          window.AB_JUMP_CONFIG.edgeProxyBase = params.get('edgeBase');
+        }
+      })();
+    </script>
+    <script type="module" src="src/frontend/main.js"></script>
+  </body>
+</html>

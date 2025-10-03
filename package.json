@@ -1,0 +1,19 @@
+{
+  "name": "shopify-routing-prototype",
+  "version": "0.1.0",
+  "description": "Prototype for transparent checkout routing between Shopify stores",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "morgan": "^1.10.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
