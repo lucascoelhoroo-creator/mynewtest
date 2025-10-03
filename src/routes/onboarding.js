@@ -1,16 +1,16 @@
 import { Router } from 'express';
 import {
   connectShop,
-  deletePolicy,
   deleteProductMapping,
-  getConsentCopy,
-  listPolicies,
+  deleteEdgeWorker,
+  getOnboardingStatus,
   listProductMappings,
   listShops,
-  saveConsentCopy,
-  savePolicy,
+  listEdgeWorkers,
+  saveEdgeWorker,
   saveProductMapping
 } from '../services/configService.js';
+import { generateTestCheckoutLink } from '../services/routingService.js';
 
 const router = Router();
 
@@ -47,33 +47,48 @@ router.delete('/mappings/:id', async (req, res) => {
   res.status(204).send();
 });
 
-router.get('/policies', async (_req, res) => {
-  const policies = await listPolicies();
-  res.json(policies);
+router.get('/edge-workers', async (_req, res) => {
+  const workers = await listEdgeWorkers();
+  res.json(workers);
 });
 
-router.post('/policies', async (req, res) => {
-  const policy = req.body;
-  if (!policy.id) {
-    return res.status(400).json({ message: 'Policy id is required' });
+router.post('/edge-workers', async (req, res) => {
+  const worker = req.body;
+  if (!worker.id || !worker.endpointUrl) {
+    return res.status(400).json({ message: 'Edge worker id and endpointUrl are required' });
   }
-  await savePolicy(policy);
-  res.status(201).json({ message: 'Policy saved' });
+  await saveEdgeWorker(worker);
+  res.status(201).json({ message: 'Edge worker saved' });
 });
 
-router.delete('/policies/:id', async (req, res) => {
-  await deletePolicy(req.params.id);
+router.delete('/edge-workers/:id', async (req, res) => {
+  await deleteEdgeWorker(req.params.id);
   res.status(204).send();
 });
 
-router.get('/consent', async (_req, res) => {
-  const consent = await getConsentCopy();
-  res.json(consent);
+router.get('/status', async (_req, res) => {
+  const status = await getOnboardingStatus();
+  res.json(status);
 });
 
-router.post('/consent', async (req, res) => {
-  await saveConsentCopy(req.body);
-  res.status(200).json({ message: 'Consent updated' });
+router.post('/test-link', async (req, res) => {
+  try {
+    const { mappingId } = req.body;
+    if (!mappingId) {
+      return res.status(400).json({ message: 'mappingId is required' });
+    }
+    const decision = await generateTestCheckoutLink(mappingId);
+    res.status(201).json({
+      message: 'Link de teste gerado',
+      checkoutUrl: decision.checkoutUrl,
+      sessionId: decision.sessionId,
+      targetShop: decision.targetShop,
+      originShop: decision.originShop,
+      edgeWorker: decision.edgeWorker
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 });
 
 export default router;

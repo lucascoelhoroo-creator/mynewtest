@@ -1,33 +1,6 @@
 import { randomUUID } from 'crypto';
-import {
-  getConfig,
-  pushEvent,
-  recordSession
-} from '../lib/storage.js';
+import { getConfig, pushEvent, recordSession } from '../lib/storage.js';
 import { createShopifyCheckout } from './shopifyService.js';
-
-function matchPolicies(policies, context) {
-  return policies
-    .filter((policy) => policy.enabled !== false)
-    .filter((policy) => {
-      if (policy.criteria?.regions?.length) {
-        if (!context.region || !policy.criteria.regions.includes(context.region)) {
-          return false;
-        }
-      }
-      if (policy.criteria?.languages?.length) {
-        if (!context.language || !policy.criteria.languages.includes(context.language)) {
-          return false;
-        }
-      }
-      if (policy.criteria?.channels?.length) {
-        if (!context.channel || !policy.criteria.channels.includes(context.channel)) {
-          return false;
-        }
-      }
-      return true;
-    });
-}
 
 export async function decideRouting(requestPayload) {
   const config = await getConfig();
@@ -47,21 +20,19 @@ export async function decideRouting(requestPayload) {
     return { status: 'unmapped' };
   }
 
-  const policies = matchPolicies(config.routingPolicies, requestPayload);
-  const policy = policies[0];
-
-  if (!policy) {
+  const originShop = config.shops.siteA.find((shop) => shop.shopDomain === mapping.siteAShopDomain);
+  if (!originShop) {
     await pushEvent({
       type: 'routing.skipped',
-      reason: 'policy_not_matched',
+      reason: 'origin_shop_missing',
       sessionId: requestPayload.session_id_a,
       product: requestPayload.product_x_id
     });
-    return { status: 'policy_not_matched' };
+    return { status: 'origin_missing' };
   }
 
   const sessionId = requestPayload.session_id_a ?? randomUUID();
-  const consentCopy = config.consent;
+
   const shopTarget = config.shops.siteB.find((shop) => shop.shopDomain === mapping.siteBShopDomain);
 
   if (!shopTarget) {
@@ -74,6 +45,7 @@ export async function decideRouting(requestPayload) {
     return { status: 'target_missing' };
   }
 
+  const edgeWorker = config.edgeWorkers[0] ?? null;
   const checkout = await createShopifyCheckout({
     shopDomain: shopTarget.shopDomain,
     accessToken: shopTarget.adminAccessToken,
@@ -86,25 +58,59 @@ export async function decideRouting(requestPayload) {
   await recordSession(sessionId, {
     product_x_id: requestPayload.product_x_id,
     targetShop: shopTarget.shopDomain,
+    originShop: originShop.shopDomain,
     checkoutId: checkout.checkoutId,
-    policyId: policy.id,
-    status: 'awaiting_consent'
+    edgeWorkerId: edgeWorker?.id ?? null,
+    status: 'redirect_ready'
   });
 
   await pushEvent({
     type: 'routing.decision',
     sessionId,
-    policyId: policy.id,
+    mappingId: mapping.id,
+    originShop: originShop.shopDomain,
     targetShop: shopTarget.shopDomain,
+    edgeWorkerId: edgeWorker?.id ?? null,
     checkoutId: checkout.checkoutId
   });
 
   return {
     status: 'ready',
     sessionId,
-    consent: consentCopy,
     checkoutUrl: checkout.checkoutUrl,
     checkoutId: checkout.checkoutId,
-    targetShop: shopTarget.shopDomain
+    targetShop: shopTarget.shopDomain,
+    originShop: originShop.shopDomain,
+    edgeWorker: edgeWorker ? { id: edgeWorker.id, label: edgeWorker.label } : null
   };
+}
+
+export async function generateTestCheckoutLink(mappingId) {
+  const config = await getConfig();
+  const mapping = config.productMappings.find((entry) => entry.id === mappingId);
+
+  if (!mapping) {
+    throw new Error('Mapeamento não encontrado');
+  }
+
+  const sessionId = `test-${randomUUID()}`;
+  const decision = await decideRouting({
+    product_x_id: mapping.siteAProductId,
+    channel: mapping.channel,
+    session_id_a: sessionId,
+    quantity: 1
+  });
+
+  if (decision.status !== 'ready') {
+    throw new Error(`Não foi possível gerar link de teste (${decision.status})`);
+  }
+
+  await pushEvent({
+    type: 'onboarding.test_link.generated',
+    sessionId: decision.sessionId,
+    mappingId,
+    checkoutId: decision.checkoutId
+  });
+
+  return decision;
 }

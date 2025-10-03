@@ -2,20 +2,20 @@
 
 Este repositório contém um protótipo funcional de roteamento transparente de checkout
 para ambientes multi-loja na Shopify. O fluxo foi desenhado para demonstrar práticas de
-transparência, consentimento expresso do consumidor e conformidade com Shopify Payments,
-PCI DSS (escopo reduzido) e regulamentos de privacidade (LGPD/GDPR).
+transparência operacional, conformidade com Shopify Payments, PCI DSS (escopo reduzido) e
+regulamentos de privacidade (LGPD/GDPR).
 
 ## Componentes
 
 - **Backend Express** (simulando Edge + Functions/FaaS):
-  - `/api/edge/intercept` – recebe intenção de compra do Site A, aplica políticas, registra
-    consentimento e retorna a URL oficial de checkout da Shopify.
-  - `/api/onboarding/*` – onboarding guiado para conectar lojas, mapear produtos e definir
-    políticas de roteamento.
+  - `/api/edge/intercept` – recebe intenção de compra do Site A, aplica mapeamentos e retorna a
+    URL oficial de checkout da Shopify.
+  - `/api/onboarding/*` – onboarding guiado para conectar lojas, mapear produtos, cadastrar
+    servidores de Jump AB e gerar links de checkout de teste.
   - `/api/webhooks/*` – handlers de checkout/order que atualizam sessões e registram eventos.
   - `/api/dashboard/*` – métricas e logs para auditoria e monitoramento.
-- **Frontend minimalista** (HTML/JS/CSS) servindo onboarding, configuração de consentimento e
-  dashboard de acompanhamento.
+- **Frontend minimalista** (HTML/JS/CSS) servindo onboarding completo, cadastro de servidores
+  Edge/Functions, geração de links de teste e dashboard de acompanhamento.
 - **Persistência local** (`data/config.json`) apenas para o protótipo.
 
 > ⚠️ O sistema nunca coleta nem processa dados sensíveis de pagamento. Toda a cobrança ocorre
@@ -36,8 +36,10 @@ A aplicação ficará disponível em `http://localhost:3000`.
    usados apenas quando quiser acionar a Shopify Admin API real).
 2. **Mapear produtos**: defina pares Produto X (Site A) → Produto Y/Variante (Site B) com IDs
    Globais da Shopify e lojas correspondentes.
-3. **Criar políticas**: configure critérios de roteamento (região, idioma, canal).
-4. **Consentimento**: personalize mensagem e CTAs obrigatórios.
+3. **Cadastrar servidores Jump AB**: informe endpoints das funções/edges responsáveis pelo
+   roteamento.
+4. **Gerar link de teste**: ao conectar lojas e mapeamentos, use a seção “Gerar link de teste”
+   para criar um checkout real/simulado para validação.
 5. **Simular interceptação**: use o formulário “Simular Interceptação Edge” para enviar
    `product_x_id` e contexto. O protótipo retorna a URL de checkout e registra o evento.
 6. **Webhooks**: envie requisições de teste para `/api/webhooks/order-paid` para simular
@@ -45,16 +47,17 @@ A aplicação ficará disponível em `http://localhost:3000`.
 
 ## Conformidade e salvaguardas inclusas
 
-- **Transparência** – Consentimento explícito antes de redirecionar para outra loja,
-  com texto configurável e logs de apresentação/aceite.
-- **Privacidade** – Dados mínimos são armazenados (IDs, contexto, consentimento). Nenhum dado
+- **Transparência** – Logs completos das decisões de roteamento, origem/destino e servidor
+  utilizado para auditoria.
+- **Privacidade** – Dados mínimos são armazenados (IDs, contexto técnico). Nenhum dado
   sensível é salvo; base legal depende da implementação real (não inclusa aqui).
 - **PCI DSS** – Pagamentos ocorrem apenas no checkout oficial; qualquer tentativa de coletar
   cartões diretamente requer redesign e certificação (fora do escopo).
 - **Políticas Shopify** – O protótipo evita mascarar origem, proxies ou técnicas anti-fraude.
   A documentação e a UI reforçam que apenas lojas da mesma organização devem ser conectadas.
-- **Auditoria** – Eventos de roteamento, consentimento e webhooks são gravados para consulta.
-- **Feature flags** – Campo `consent.enabled` impede o roteamento sem mensagem configurada.
+- **Auditoria** – Eventos de roteamento e webhooks são gravados para consulta.
+- **Feature flags** – Configuração pode ser estendida para exigir servidores registrados antes
+  de liberar produção.
 
 ## Próximos passos sugeridos
 

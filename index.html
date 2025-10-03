@@ -78,56 +78,51 @@
       </section>
 
       <section class="card">
-        <h2>3. Políticas de Roteamento</h2>
-        <form id="policy-form">
+        <h2>3. Servidores Jump AB</h2>
+        <p>Cadastre os workers ou funções que executarão o roteamento transparente.</p>
+        <form id="edge-worker-form">
           <div class="two-columns">
             <div class="field">
-              <label for="policyId">ID da Política</label>
-              <input id="policyId" required placeholder="policy-br" />
+              <label for="edgeWorkerId">ID do Servidor</label>
+              <input id="edgeWorkerId" required placeholder="edge-br-1" />
             </div>
             <div class="field">
-              <label for="regions">Regiões permitidas (CSV)</label>
-              <input id="regions" placeholder="BR,PT" />
+              <label for="edgeWorkerLabel">Nome amigável</label>
+              <input id="edgeWorkerLabel" placeholder="CDN São Paulo" />
             </div>
           </div>
-          <div class="field">
-            <label for="languages">Idiomas (CSV)</label>
-            <input id="languages" placeholder="pt-BR,en" />
+          <div class="two-columns">
+            <div class="field">
+              <label for="edgeWorkerUrl">Endpoint</label>
+              <input id="edgeWorkerUrl" required placeholder="https://edge.exemplo.com/intercept" />
+            </div>
+            <div class="field">
+              <label for="edgeWorkerRegions">Regiões atendidas (CSV)</label>
+              <input id="edgeWorkerRegions" placeholder="BR,AR,CL" />
+            </div>
           </div>
-          <div class="field">
-            <label for="channels">Canais (CSV)</label>
-            <input id="channels" placeholder="online_store" />
-          </div>
-          <label class="checkbox">
-            <input type="checkbox" id="policyEnabled" checked /> Política ativa
-          </label>
-          <button type="submit">Salvar política</button>
+          <button type="submit">Salvar servidor</button>
         </form>
-        <pre id="policy-list" class="preview"></pre>
+        <pre id="edge-worker-list" class="preview"></pre>
       </section>
 
-      <section class="card">
-        <h2>4. Mensagem de Consentimento</h2>
-        <form id="consent-form">
+      <section class="card" id="test-link">
+        <h2>4. Gerar link de teste</h2>
+        <p id="test-link-helper">Conecte lojas e mapeamentos para liberar o link.</p>
+        <div id="status-summary" class="status"></div>
+        <div class="two-columns">
           <div class="field">
-            <label for="consentMessage">Mensagem</label>
-            <textarea id="consentMessage" rows="3"></textarea>
+            <label for="testMapping">Mapeamento</label>
+            <select id="testMapping" disabled>
+              <option value="">Selecione um mapeamento</option>
+            </select>
           </div>
-          <div class="two-columns">
-            <div class="field">
-              <label for="ctaProceed">CTA Prosseguir</label>
-              <input id="ctaProceed" />
-            </div>
-            <div class="field">
-              <label for="ctaCancel">CTA Cancelar</label>
-              <input id="ctaCancel" />
-            </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button type="button" id="generate-test-link" disabled>Gerar checkout de teste</button>
           </div>
-          <label class="checkbox">
-            <input type="checkbox" id="consentEnabled" checked /> Exigir consentimento
-          </label>
-          <button type="submit">Atualizar consentimento</button>
-        </form>
+        </div>
+        <div id="test-link-output" class="preview"></div>
       </section>
 
       <section class="card" id="dashboard">
@@ -136,26 +131,20 @@
         <pre id="events" class="preview"></pre>
       </section>
 
-      <section class="card" id="consent-simulator">
+      <section class="card" id="edge-simulator">
         <h2>Simular Interceptação Edge</h2>
         <form id="edge-form">
           <div class="field">
             <label for="edgeProduct">product_x_id</label>
             <input id="edgeProduct" required />
           </div>
-          <div class="two-columns">
-            <div class="field">
-              <label for="edgeRegion">Região</label>
-              <input id="edgeRegion" placeholder="BR" />
-            </div>
-            <div class="field">
-              <label for="edgeLanguage">Idioma</label>
-              <input id="edgeLanguage" placeholder="pt-BR" />
-            </div>
-          </div>
           <div class="field">
             <label for="edgeChannel">Canal</label>
             <input id="edgeChannel" placeholder="online_store" />
+          </div>
+          <div class="field">
+            <label for="edgeQuantity">Quantidade</label>
+            <input id="edgeQuantity" type="number" min="1" value="1" />
           </div>
           <button type="submit">Executar decisão</button>
         </form>
@@ -166,7 +155,7 @@
     <footer>
       <p>
         Este protótipo não processa pagamentos diretamente. Tudo é redirecionado para o
-        checkout oficial da Shopify após consentimento explícito do cliente.
+        checkout oficial da Shopify com aviso transparente sobre a loja responsável.
       </p>
     </footer>
 

@@ -17,16 +17,16 @@ produção.
 ## PCI DSS (Escopo reduzido)
 
 - [ ] Nenhum formulário customizado coleta PAN/CVV ou dados sensíveis.
-- [ ] Logs e `data/config.json` não armazenam dados de cartão, apenas IDs, consentimentos e eventos.
-- [ ] Existe política que bloqueia o deploy caso o consentimento esteja desativado (`consent.enabled`).
+- [ ] Logs e `data/config.json` não armazenam dados de cartão, apenas IDs técnicos e eventos.
+- [ ] Checklist operacional garante que somente workers Jump AB autorizados estejam ativos.
 - [ ] Revisão de código confirma que todo pagamento ocorre fora do protótipo (Shopify Checkout).
 
 ## LGPD/GDPR
 
 - [ ] Base legal e finalidade descritas na política de privacidade para compartilhar dados entre lojas.
-- [ ] Consentimento informado explícito antes do redirecionamento.
+- [ ] Aviso transparente de redirecionamento configurado nas lojas de origem.
 - [ ] Dados minimizados: apenas IDs, sessão e contexto (sem dados sensíveis) persistidos.
-- [ ] Processo de revogação documentado (como o cliente cancela ou remove consentimento).
+- [ ] Processo claro de suporte ao consumidor após redirecionamento documentado.
 
 ## Segurança Operacional
 

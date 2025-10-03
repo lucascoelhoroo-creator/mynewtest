@@ -41,33 +41,36 @@ export async function deleteProductMapping(id) {
   });
 }
 
-export async function listPolicies() {
+export async function listEdgeWorkers() {
   const config = await getConfig();
-  return config.routingPolicies;
+  return config.edgeWorkers;
 }
 
-export async function savePolicy(policy) {
+export async function saveEdgeWorker(worker) {
   await updateConfig((config) => {
-    upsert(config.routingPolicies, policy, 'id');
+    upsert(config.edgeWorkers, worker, 'id');
   });
 }
 
-export async function deletePolicy(id) {
+export async function deleteEdgeWorker(id) {
   await updateConfig((config) => {
-    const index = config.routingPolicies.findIndex((p) => p.id === id);
+    const index = config.edgeWorkers.findIndex((worker) => worker.id === id);
     if (index >= 0) {
-      config.routingPolicies.splice(index, 1);
+      config.edgeWorkers.splice(index, 1);
     }
   });
 }
 
-export async function getConsentCopy() {
+export async function getOnboardingStatus() {
   const config = await getConfig();
-  return config.consent;
-}
-
-export async function saveConsentCopy(consent) {
-  await updateConfig((config) => {
-    config.consent = { ...config.consent, ...consent };
-  });
+  const siteAConnected = config.shops.siteA.length > 0;
+  const siteBConnected = config.shops.siteB.length > 0;
+  const mappingsReady = config.productMappings.some(
+    (mapping) =>
+      config.shops.siteA.some((shop) => shop.shopDomain === mapping.siteAShopDomain) &&
+      config.shops.siteB.some((shop) => shop.shopDomain === mapping.siteBShopDomain)
+  );
+  const workersConnected = config.edgeWorkers.length > 0;
+  const ready = siteAConnected && siteBConnected && mappingsReady;
+  return { siteAConnected, siteBConnected, mappingsReady, workersConnected, ready };
 }

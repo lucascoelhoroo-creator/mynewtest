@@ -1,9 +1,9 @@
 # Arquitetura do Protótipo AB Jump
 
 O objetivo do protótipo é demonstrar um fluxo completo de roteamento de checkout entre múltiplas
-lojas Shopify com consentimento explícito do cliente. A implementação utiliza uma arquitetura
-híbrida inspirada em Edge + Functions, mas simplificada em um único servidor Express para fins de
-prova de conceito.
+lojas Shopify, mantendo transparência sobre origem/destino e aderindo às políticas de pagamentos.
+A implementação utiliza uma arquitetura híbrida inspirada em Edge + Functions, mas simplificada em
+um único servidor Express para fins de prova de conceito.
 
 ## Visão Geral
 
@@ -12,27 +12,22 @@ Site A (Origem) -> CDN/Edge (Simulado) -> FaaS/Backend -> Shopify Checkout (Site
 ```
 
 1. **Interceptação Edge (`/api/edge/intercept`)**
-   - Recebe intenção de compra com `product_x_id`, `quantity`, região, idioma e canal.
-   - Avalia políticas declarativas e mapeamentos de produto.
+   - Recebe intenção de compra com `product_x_id`, `quantity` e canal.
+   - Aplica mapeamentos declarados entre Site A e Site B.
    - Cria (ou simula) um checkout oficial via Shopify Admin API no Site B correspondente.
-   - Registra consentimento a ser apresentado ao cliente e retorna `checkoutUrl` para exibição.
+   - Retorna `checkoutUrl`, registrando qual servidor Jump AB foi selecionado.
 
-2. **Consentimento**
-   - UI exibe a mensagem configurada; somente após consentimento o usuário é redirecionado para
-     `checkoutUrl`.
-   - `/api/edge/consent/:sessionId` grava a resposta do cliente para auditoria.
-
-3. **Checkout Oficial Shopify**
+2. **Checkout Oficial Shopify**
    - Todo pagamento ocorre no `webUrl` retornado pela Shopify (`Shop Pay` ou checkout nativo).
    - O protótipo inclui atributos customizados no checkout para rastrear `sessionId` e loja origem.
 
-4. **Webhooks do Site B**
+3. **Webhooks do Site B**
    - `/api/webhooks/*` recebem notificações de checkout, pedido criado, pago ou falho.
    - Atualizam sessões internas e alimentam o dashboard.
 
-5. **Dashboard e Monitoramento**
-   - `/api/dashboard/metrics` e `/api/dashboard/events` expõem um funil simplificado:
-     iniciado → consentido → redirecionado → pago → falhas.
+4. **Dashboard e Monitoramento**
+   - `/api/dashboard/metrics` e `/api/dashboard/events` expõem um funil simplificado com
+     informações sobre servidor selecionado, origem e destino.
 
 ## Persistência
 
@@ -41,10 +36,10 @@ Site A (Origem) -> CDN/Edge (Simulado) -> FaaS/Backend -> Shopify Checkout (Site
 
 ## Controles de Segurança e Ética
 
-- Mensagem de consentimento é obrigatória e configurável.
 - Logs incluem apenas IDs e metadados (sem dados sensíveis).
 - Não há alteração de `Referer`, `User-Agent` ou uso de proxies.
 - Tokens Admin API são opcionais no protótipo; quando ausentes, a chamada à Shopify é simulada.
+- Cadastro explícito dos servidores Jump AB permite rastrear responsabilidade operacional.
 
 ## Próximas Evoluções
 
