@@ -1,22 +1,15 @@
 import { Router } from 'express';
-import { getConfig, getEvents, getSessions } from '../lib/storage.js';
+import { getDashboardEventsSnapshot, getDashboardMetricsSnapshot } from '../services/dashboardService.js';
 
 const router = Router();
 
 router.get('/metrics', async (_req, res) => {
-  const config = await getConfig();
-  const sessions = await getSessions();
-  const totals = {
-    initiated: Object.keys(sessions).length,
-    redirectReady: config.events.filter((e) => e.type === 'routing.decision').length,
-    paid: config.events.filter((e) => e.type === 'webhook.order_paid').length,
-    failed: config.events.filter((e) => e.type === 'webhook.order_failed').length
-  };
-  res.json({ totals, edgeWorkersConnected: config.edgeWorkers.length });
+  const snapshot = await getDashboardMetricsSnapshot();
+  res.json(snapshot);
 });
 
 router.get('/events', async (_req, res) => {
-  const events = await getEvents();
+  const events = await getDashboardEventsSnapshot();
   res.json(events);
 });
 

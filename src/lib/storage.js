@@ -3,15 +3,17 @@ import { constants } from 'fs';
 import { resolve, dirname } from 'path';
 import { defaultConfig } from '../config/defaultConfig.js';
 
-const DATA_PATH = resolve(process.env.CONFIG_PATH ?? './data/config.json');
+function resolveDataPath() {
+  return resolve(process.env.CONFIG_PATH ?? './data/config.json');
+}
 
-async function ensureConfigFile() {
+async function ensureConfigFile(dataPath) {
   try {
-    await access(DATA_PATH, constants.F_OK);
+    await access(dataPath, constants.F_OK);
   } catch (error) {
     if (error.code === 'ENOENT') {
-      await mkdir(dirname(DATA_PATH), { recursive: true });
-      await writeFile(DATA_PATH, JSON.stringify(defaultConfig, null, 2));
+      await mkdir(dirname(dataPath), { recursive: true });
+      await writeFile(dataPath, JSON.stringify(defaultConfig, null, 2));
     } else {
       throw error;
     }
@@ -19,14 +21,16 @@ async function ensureConfigFile() {
 }
 
 async function loadConfig() {
-  await ensureConfigFile();
-  const raw = await readFile(DATA_PATH, 'utf-8');
+  const dataPath = resolveDataPath();
+  await ensureConfigFile(dataPath);
+  const raw = await readFile(dataPath, 'utf-8');
   return JSON.parse(raw);
 }
 
 async function saveConfig(config) {
-  await mkdir(dirname(DATA_PATH), { recursive: true });
-  await writeFile(DATA_PATH, JSON.stringify(config, null, 2));
+  const dataPath = resolveDataPath();
+  await mkdir(dirname(dataPath), { recursive: true });
+  await writeFile(dataPath, JSON.stringify(config, null, 2));
 }
 
 async function withConfig(mutator) {
